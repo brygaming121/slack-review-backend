@@ -205,13 +205,24 @@ async def handle_script_message(event: dict):
 
 
 async def handle_button_click(payload: dict):
-    action     = payload["actions"][0]
-    action_id  = action["action_id"]
-    message_ts = payload["container"]["message_ts"]
-    channel_id = payload["channel"]["id"]
-    user_id    = payload["user"]["id"]
+    try:
+        action     = payload["actions"][0]
+        action_id  = action["action_id"]
+        message_ts = payload["container"]["message_ts"]
+        channel_id = payload["channel"]["id"]
+        user_id    = payload["user"]["id"]
+        print(f"[BUTTON] action={action_id} user={user_id} ts={message_ts}")
+    except Exception as e:
+        print(f"[BUTTON] Failed to parse payload: {e}")
+        return
 
-    real_name  = await get_user_real_name(user_id)
+    try:
+        real_name  = await get_user_real_name(user_id)
+        print(f"[BUTTON] real_name={real_name}")
+    except Exception as e:
+        print(f"[BUTTON] get_user_real_name failed: {e}")
+        real_name = user_id
+
     decision   = action_id.upper()
 
     label_map  = {"approve": "Approved", "revise": "Revision Requested", "reject": "Rejected"}
@@ -227,24 +238,34 @@ async def handle_button_click(payload: dict):
         "text": {"type": "mrkdwn", "text": f"{emoji} *{label}* by <@{user_id}>"}
     })
 
-    async with httpx.AsyncClient() as client:
-        await slack_post(client, "chat.update", {
-            "channel": channel_id,
-            "ts":      message_ts,
-            "blocks":  new_blocks,
-            "text":    f"{label} by <@{user_id}>"
-        })
-        if action_id == "revise":
-            await slack_post(client, "chat.postMessage", {
-                "channel":   REVIEW_CHANNEL_ID,
-                "thread_ts": message_ts,
-                "text":      ":speech_balloon: Revision requested. Reply in this thread with your notes and they will be saved automatically."
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await slack_post(client, "chat.update", {
+                "channel": channel_id,
+                "ts":      message_ts,
+                "blocks":  new_blocks,
+                "text":    f"{label} by <@{user_id}>"
             })
+            print(f"[BUTTON] chat.update: {r.get('ok')} {r.get('error','')}")
+            if action_id == "revise":
+                r2 = await slack_post(client, "chat.postMessage", {
+                    "channel":   REVIEW_CHANNEL_ID,
+                    "thread_ts": message_ts,
+                    "text":      ":speech_balloon: Revision requested. Reply in this thread with your notes and they will be saved automatically."
+                })
+                print(f"[BUTTON] thread prompt: {r2.get('ok')} {r2.get('error','')}")
+    except Exception as e:
+        print(f"[BUTTON] Slack update failed: {e}")
 
-    ws  = get_sheet()
-    row = find_row_by_ts(ws, message_ts)
-    if row > 0:
-        ws.update(f"H{row}:J{row}", [[decision, "", real_name]])
+    try:
+        ws  = get_sheet()
+        row = find_row_by_ts(ws, message_ts)
+        print(f"[BUTTON] sheet row={row}")
+        if row > 0:
+            ws.update(f"H{row}:J{row}", [[decision, "", real_name]])
+            print(f"[BUTTON] sheet updated H{row}:J{row}")
+    except Exception as e:
+        print(f"[BUTTON] Sheet update failed: {e}")
 
 
 async def handle_admin_reply(event: dict):
