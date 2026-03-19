@@ -6,15 +6,18 @@ Replaces n8n workflow with direct Python implementation
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 import json, re, os, httpx, gspread
 from google.oauth2 import service_account
 from datetime import datetime
 
+load_dotenv()
+
 app = FastAPI()
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
-SLACK_BOT_TOKEN    = os.getenv("SLACK_BOT_TOKEN")
+OPENAI_API_KEY     = (os.getenv("OPENAI_API_KEY") or "").strip()
+SLACK_BOT_TOKEN    = (os.getenv("SLACK_BOT_TOKEN") or "").strip()
 SCRIPTS_CHANNEL_ID = os.getenv("SCRIPTS_CHANNEL_ID", "C0ALXAY43AP")
 REVIEW_CHANNEL_ID  = os.getenv("REVIEW_CHANNEL_ID",  "C0AM7ABG9EY")
 GOOGLE_SHEET_ID    = os.getenv("GOOGLE_SHEET_ID",    "14CQGHa_Bhzpck_jm2O8kkBPY5nRNV4q2TiIPvFeVosk")
