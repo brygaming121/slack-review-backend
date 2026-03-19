@@ -6,12 +6,15 @@ Replaces n8n workflow with direct Python implementation
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
 import json, re, os, httpx, gspread
 from google.oauth2 import service_account
 from datetime import datetime
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = FastAPI()
 
